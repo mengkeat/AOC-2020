@@ -27,7 +27,7 @@ let v5 m =
     let valid_len = Seq.filter (fun x -> Seq.contains x numalpha) h |> Seq.length
     valid_len=6 && h.[0]='#'
 let v6 m = List.contains (Map.find "ecl" m) ["amb"; "blu"; "brn"; "gry"; "grn"; "hzl"; "oth"] 
-let v7 (m: Map<string, string>) = [for c in (Map.find "pid" m) -> List.contains c ['0'..'9']] |> (fun x-> x.Length=9)
+let v7 m = [for c in (Map.find "pid" m) -> List.contains c ['0'..'9']] |> (fun x-> x.Length=9)
 let all_ok m = allbutcid m && v1 m && v2 m && v3 m && v4 m && v5 m && v6 m && v7 m
 
 let part2 = records_map |> List.map all_ok |> List.filter id |> List.length
