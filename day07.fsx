@@ -1,5 +1,4 @@
 open System.IO
-open System.Text.RegularExpressions
 
 let dat = File.ReadAllLines ( __SOURCE_DIRECTORY__ + "/day07.txt" )
 
