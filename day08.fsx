@@ -26,7 +26,7 @@ let rec changeProg front (rest: Instruction list)  =
                             | ("nop", x) -> front@("jmp", x)::rest.Tail
                             | _ -> front@rest
             nextprog::(changeProg (front@[rest.Head]) rest.Tail)
-        else []
+        else [front]
 
 let part2 = changeProg [] prog
             |> Seq.map (fun p -> run p 0 0 [])
