@@ -6,6 +6,7 @@ let idxbus = dat.[1].Split(',') |> Seq.mapi (fun i e -> if e="x" then None else 
 
 let part1 = idxbus |> Seq.map (fun (_, i) -> (i, i-(eTime%i)))  |> Seq.minBy (fun (id, r) -> r)  |> (fun (x,y) -> x*y)
 
+// Jump dt assumes that the busIDs are all co-primes
 let rec sieve (i, dt) (offset, busId) =
     Seq.initInfinite (fun n -> (uint64 n)*dt + i)
     |> Seq.find (fun t -> (t+offset) % busId = 0UL)
