@@ -24,14 +24,10 @@ let rec RPN (pred: Map<ATOM, int>) (input: ATOM list) (output: ATOM list) (op: A
 let rec eval (expr: ATOM list) (stack: uint64 list) = 
     if expr.IsEmpty then stack.Head
     else
-        match expr.Head with
-        | V(a) -> eval expr.Tail (a::stack)
-        | MUL -> 
-            let v = stack.[0] * stack.[1]
-            eval expr.Tail (v::(List.skip 2 stack))
-        | ADD -> 
-            let v = stack.[0]+stack.[1]
-            eval expr.Tail (v::(List.skip 2 stack))
+        match expr with
+        | V(a)::rest -> eval rest (a::stack)
+        | MUL::rest ->  eval rest ((stack.[0]*stack.[1])::(List.skip 2 stack))
+        | ADD::rest ->  eval rest ((stack.[0]+stack.[1])::(List.skip 2 stack))
         | _ -> 0UL
 
 let part1 = dat |> Seq.map (fun s -> RPN PRED1 (tokenize s) [] []) |> Seq.map (fun e -> eval e []) |> Seq.reduce (+)
