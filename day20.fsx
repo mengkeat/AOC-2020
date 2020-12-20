@@ -26,26 +26,19 @@ let edges (state: char[,]) =
     let d = Array2D.length1 state
     [state.[0,*]; state.[d-1,*]; state.[*,0]; state.[*,d-1]] 
 
-let findTileFitEdge (e: char[]) (currTileNum: int) = 
-    let stateEdges (t:Tile) = List.map edges t.States |> List.collect id   
-    let edgeMatchTile (t:Tile) = List.contains e (stateEdges t)
-    seq {for t in Tiles -> 
-            if currTileNum=t.Nb || (edgeMatchTile t |> not) then None else Some(t) 
-        } |> Seq.choose id
-
-// Note: unfinished
-// let findStateFitEdge (e: char[]) (currTileNum: int) = 
-//     let stateEdges (t:Tile) = List.map edges t.States 
-//     let edgeMatchTile (t:Tile) = stateEdges t |> List.map (List.contains e)
-//     let matches (t:Tile) = List.zip (edgeMatchTile t) t.States |> List.filter fst |> List.map snd
-//     seq {for t in Tiles -> 
-//             let fittingStates = matches t
-//             if currTileNum=t.Nb || fittingStates.IsEmpty then None else Some((t.Nb, fittingStates)) 
-//     } |> Seq.choose id |> Seq.head
+// Note: Assumes that there is always 0 or 1 match for any edge
+let findStateFitEdge ((currTileNum, e): int * char[]) = 
+    let stateEdges (t:Tile) = List.map edges t.States 
+    let edgeMatchTile (t:Tile) = stateEdges t |> List.map (List.contains e)
+    let matches (t:Tile) = List.zip (edgeMatchTile t) t.States |> List.filter fst |> List.map snd
+    [for t in Tiles -> 
+            let fittingStates = matches t
+            if currTileNum=t.Nb || fittingStates.IsEmpty then None else Some((t.Nb, fittingStates)) 
+    ] |> List.choose id |> List.tryExactlyOne
 
 let nbTileFit currtile =
     let refEdges = edges currtile.States.[0]
-    seq { for e in refEdges -> findTileFitEdge e currtile.Nb} |> Seq.collect id |> Seq.length
+    seq { for e in refEdges -> findStateFitEdge (currtile.Nb, e) } |> Seq.choose id |> Seq.length
 
 let cornerTiles = Tiles |> List.choose (fun t-> if (nbTileFit t)=2 then Some(t) else None)
 let p1 = cornerTiles |> List.map (fun t-> uint64 t.Nb) |> List.reduce (*)
@@ -54,8 +47,23 @@ printfn "Part 1: %A" p1
 let TopLeftTile = 
     let isTL (t:Tile) = 
         let e = edges t.States.[0]
-        let hasTile edge = (findTileFitEdge edge t.Nb) |> (fun s -> (Seq.length s) >0)
+        let hasTile edge = (findStateFitEdge (t.Nb, edge) ) |> (fun s -> match s with | Some(_) -> true | _ -> false)
         (hasTile e.[0] |> not) && (hasTile e.[1]) && (hasTile e.[2] |> not ) && (hasTile e.[3])
     cornerTiles |> List.filter isTL |> List.head 
 
 printfn "TL: %A" TopLeftTile.Nb
+
+// let tryRightTile ((tnum, state): int * char [,]) = 
+//     let rightEdge = (edges state).[3]
+//     findStateFitEdge (tnum, rightEdge)
+
+// let tryDownTile ((tnum, state): int * char [,]) = 
+//     let rightEdge = (edges state).[1]
+//     findStateFitEdge (tnum, rightEdge)
+
+// let getRow st = 
+//     let nextr (tnum, state) = match tryRightTile (tnum, state) with | Some(a) -> Some((tnum, a)) | _ -> None
+//     let startTile = List.find (fun t -> t.Nb=st) Tiles
+//     List.unfold nextr (TopLeftTile.Nb, TopLeftTile.States.[0]) 
+
+// printfn "%A" (getRow 1289)
