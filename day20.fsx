@@ -2,7 +2,6 @@ open System.IO
 open System
 
 printfn "\n\n======="
-
 let dat = File.ReadAllText ( __SOURCE_DIRECTORY__ + "/day20.txt" )
 let tilestr = dat.Split("\r\n\r\n") |> Seq.toList
 
@@ -59,8 +58,6 @@ let TopLeftTile =
     let status = List.map isTL t.States
     List.zip status t.States |> List.filter fst |> List.head |> (fun (_, st) -> (t.Nb, st))
 
-printfn "TL: %A" TopLeftTile
-
 let finalmap = 
     let getRow (st: int * char[,]) = 
         let next (tnum, state) = match findStateFit tnum state RIGHT with | Some(a) -> Some((a, a)) | _ -> None
@@ -76,9 +73,38 @@ let finalmap =
             Array2D.blit state 1 1 finalgrid (celldim*r) (celldim*c) celldim celldim
     finalgrid
 
-printfn "Finalmap: %A %A" (Array2D.length1 finalmap) (Array2D.length2 finalmap)
+let MapRow, MapCol = (Array2D.length1 finalmap), (Array2D.length2 finalmap)
 
 let monster = [ "                  # "; 
                 "#    ##    ##    ###";
                 " #  #  #  #  #  #   "] |> array2D
+let MNum = 15
+let roughness arr = [for i in 0..(Array2D.length1 arr)-1 do 
+                        for j in 0..(Array2D.length2 arr)-1 -> if arr.[i,j]='#' then 1 else 0] |> List.reduce (+)
+let NormRoughness = roughness finalmap
 
+let monsterFit monst =
+    let mrow, mcol = Array2D.length1 monst, Array2D.length2 monst
+    let templatefit r c = [for x in 0..mrow-1 do 
+                            for y in 0..mcol-1 -> if monst.[x,y]='#' && finalmap.[x+r,y+c]='#' then 1 else 0]
+                            |> List.reduce (+) |> (fun x -> x=MNum)
+    let tempmap = Array2D.copy finalmap
+    let zero r c (m: char[,]) = for x in 0..mrow-1 do 
+                                    for y in 0..mcol-1 do 
+                                        if monst.[x,y]='#' then 
+                                            // printfn "Setting %A %A to 0" x y
+                                            m.[x+r, y+c]<-'.'
+    for r in 0 ..(MapRow-mrow-1) do  
+        for c in 0..(MapCol-mcol-1) do
+            if templatefit r c then 
+                zero r c tempmap 
+    let rough = roughness tempmap
+    if rough<>NormRoughness then Some(rough) else None
+
+let part2 = 
+    let rotMonst = [monster; rotR monster; rotR monster |> rotR; rotR monster |> rotR |> rotR]
+    let rflip = [rotMonst; List.map flipRows rotMonst] |> List.collect id
+    let cflip = [rflip; List.map flipCols rflip] |> List.collect id
+    List.map monsterFit cflip |> List.choose id
+
+printfn "Fit: %A" part2
