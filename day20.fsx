@@ -25,50 +25,60 @@ let Tiles = tilestr |> List.map parseTile
 // Edges are in order top, bottom, left, right
 let edges (state: char[,]) = 
     let d = Array2D.length1 state
-    [state.[0,*]; state.[d-1,*]; state.[*,0]; state.[*,d-1]] 
+    (state.[0,*], state.[d-1,*], state.[*,0], state.[*,d-1])
 
-// Note: Assumes that there is always 0 or 1 match for any edge
-let findStateFitEdge ((currTileNum, e): int * char[]) = 
-    let stateEdges (t:Tile) = List.map edges t.States 
-    let edgeMatchTile (t:Tile) = stateEdges t |> List.map (List.contains e)
+let RIGHT = ((fun (_, _, _, r) -> r), (fun (_, _, l, _) -> l))
+let BOTTOM = ((fun (_, b, _, _) -> b), (fun (t, _, _, _) -> t))
+let LEFT = ((fun (_, _, l, _) -> l), (fun (_, _, _, r) -> r))
+let TOP = ((fun (t, _, _, _) -> t), (fun (_, b, _, _) -> b))
+
+let findStateFit tnum state (currTileEdge, nextTileEdge) = 
+    let currEdge = edges state |> currTileEdge
+    let stateEdges (t:Tile) = List.map (edges >> nextTileEdge) t.States 
+    let edgeMatchTile (t:Tile) = stateEdges t |> List.map ((=) currEdge)
     let matches (t:Tile) = List.zip (edgeMatchTile t) t.States |> List.filter fst |> List.map snd
     [for t in Tiles -> 
             let fittingStates = matches t
             assert (fittingStates.IsEmpty || fittingStates.Length=1)
-            if currTileNum=t.Nb || fittingStates.IsEmpty then None else Some((t.Nb, fittingStates.[0])) 
+            if tnum=t.Nb || fittingStates.IsEmpty then None else Some((t.Nb, fittingStates.[0])) 
     ] |> List.choose id |> List.tryExactlyOne
 
 let nbTileFit currtile =
-    let refEdges = edges currtile.States.[0]
-    seq { for e in refEdges -> findStateFitEdge (currtile.Nb, e) } |> Seq.choose id |> Seq.length
+    let statefit = findStateFit currtile.Nb currtile.States.[0]
+    [statefit RIGHT; statefit BOTTOM; statefit LEFT; statefit TOP] |> Seq.choose id |> Seq.length
 
 let cornerTiles = Tiles |> List.choose (fun t-> if (nbTileFit t)=2 then Some(t) else None)
 let p1 = cornerTiles |> List.map (fun t-> uint64 t.Nb) |> List.reduce (*)
 printfn "Part 1: %A" p1
-printfn "CornerTiles: %A" (cornerTiles |> List.map (fun t-> t.Nb))
 
-// let TopLeftTile = 
-//     let t = cornerTiles.[0]
-//     let allEdgeStates = edges t.States.[0]
-//     let isTL edges =
-//         let hasTile edge = (findStateFitEdge (t.Nb, edge) ) |> (fun s -> match s with | Some(_) -> true | _ -> false)
-//         (hasTile e.[0] |> not) && (hasTile e.[1]) && (hasTile e.[2] |> not ) && (hasTile e.[3])
-//     allEdgeStates |> List.filter isTL 
+let TopLeftTile = 
+    let (t:Tile) = cornerTiles.[0]
+    let isTL (state: char[,]) =
+        let hasTile dirn = findStateFit t.Nb state dirn |> (fun s -> match s with | Some(_) -> true | _ -> false)
+        (hasTile TOP |> not) && (hasTile BOTTOM) && (hasTile LEFT |> not) && (hasTile RIGHT)
+    let status = List.map isTL t.States
+    List.zip status t.States |> List.filter fst |> List.head |> (fun (_, st) -> (t.Nb, st))
 
-// printfn "TL: %A" TopLeftTile
+printfn "TL: %A" TopLeftTile
 
-// let tryRightTile ((tnum, state): int * char [,]) = 
-//     let rightEdge = (edges state).[3]
-//     findStateFitEdge (tnum, rightEdge)
+let finalmap = 
+    let getRow (st: int * char[,]) = 
+        let next (tnum, state) = match findStateFit tnum state RIGHT with | Some(a) -> Some((a, a)) | _ -> None
+        st::List.unfold next st
+    let nextRow (tnum, state) = match findStateFit tnum state BOTTOM with | Some(a) -> Some((getRow a, a)) | _ -> None
+    
+    let grid = getRow TopLeftTile::List.unfold nextRow TopLeftTile
+    let celldim = (Array2D.length1 (snd grid.[0].[0]))-2
+    let dim = grid.Length * celldim 
+    let finalgrid = Array2D.create dim dim '.'
+    for r,row in List.indexed grid do
+        for c, (tnum, state) in List.indexed row do
+            Array2D.blit state 1 1 finalgrid (celldim*r) (celldim*c) celldim celldim
+    finalgrid
 
-// let tryDownTile ((tnum, state): int * char [,]) = 
-//     let rightEdge = (edges state).[1]
-//     findStateFitEdge (tnum, rightEdge)
+printfn "Finalmap: %A %A" (Array2D.length1 finalmap) (Array2D.length2 finalmap)
 
-// let getRow st = 
-//     let nextr (tnum, state) = match tryRightTile (tnum, state) with | Some(a) -> Some((tnum, a)) | _ -> None
-//     let startTile = List.find (fun t -> t.Nb=st) Tiles
-//     Seq.unfold nextr (startTile.Nb, startTile.States.[0]) 
+let monster = [ "                  # "; 
+                "#    ##    ##    ###";
+                " #  #  #  #  #  #   "] |> array2D
 
-// let getTile n = List.find (fun x -> x.Nb=n) Tiles
-// printfn "Tilefit for 2591: %A" (nbTileFit (getTile 2591))
